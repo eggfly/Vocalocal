@@ -93,7 +93,22 @@ git clone https://github.com/eggfly/Vocalocal.git && cd Vocalocal
 | 识别服务（Qwen3-ASR） | 约 2.5 GB | 常驻 |
 | 纠错服务（Qwen3-Omni） | 约 21 GB | 常驻，可关闭 |
 
-模型跑在 GPU（统一内存）上，活动监视器的"内存"列统计不全，用 `footprint -p <pid>` 查看真实占用。
+模型跑在 GPU（统一内存）上。活动监视器只有"% GPU"和"GPU 时间"，没有每个进程的 GPU 内存，"内存"列对这部分也统计不全。用自带的小工具查看真实占用：
+
+```bash
+./tools/gpumem.sh          # 按总内存排序，单独列出 GPU 内存，约 5 秒
+sudo ./tools/gpumem.sh     # 包括 WindowServer 等系统进程
+```
+
+```
+   总内存    GPU内存     PID  进程
+  20.61 GB   20.38 GB   12272  correct_server.py
+   2.44 GB    2.33 GB   12255  asr_server.py
+
+GPU 合计已分配: 37.4 GB
+```
+
+原理是一次调用 `footprint` 分析所有进程，把 `IOAccelerator` 类别（通过 Metal 申请的内存）计为 GPU 内存。
 
 ## 项目结构
 
@@ -101,4 +116,5 @@ git clone https://github.com/eggfly/Vocalocal.git && cd Vocalocal
 Sources/   Swift 菜单栏 App：Fn 监听、录音、屏幕上下文、识别 / 纠错客户端、文本输入、HUD
 server/    本地模型服务（Python + MLX）及安装脚本
 bench/     评测脚本和标注
+tools/     辅助工具（gpumem.sh：按进程查看 GPU 内存）
 ```
