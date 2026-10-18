@@ -1,0 +1,14 @@
+# 本机签名证书 ID（build.sh 读取）
+.sign-id
+
+# Python 虚拟环境（server/setup.sh 创建）
+.venv/
+.venv-omni/
+__pycache__/
+*.pyc
+
+# 评测产物：生成的音频和结果（bench/make_audio.sh 可重新生成音频）
+bench/audio/
+bench/results_*.jsonl
+
+.DS_Store
