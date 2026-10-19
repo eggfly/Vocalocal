@@ -83,9 +83,11 @@ def apply(fixes, draft):
 
 def parse_fixes(out: str):
     try:
-        return json.loads(out[out.find("{"): out.rfind("}") + 1]).get("fixes", [])
+        fixes = json.loads(out[out.find("{"): out.rfind("}") + 1]).get("fixes", [])
     except Exception:
         return []
+    # 小模型偶尔输出格式不对（例如字符串列表），只保留 {from, to} 对象
+    return [f for f in fixes if isinstance(f, dict)] if isinstance(fixes, list) else []
 
 
 def footprint_gb(pid: int) -> float:

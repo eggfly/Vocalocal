@@ -39,10 +39,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if newConfig.asrProvider == "apple" { AppleSpeech.requestAuthorization() }
             self?.hud.show(.message("设置已保存"), autoHideAfter: 1.2)
         }
-        setupMenu()
-        requestPermissions()
-        wireMonitor()
-        startMonitor()
+        // 诊断/评测模式会和正在使用的实例同时运行：不建菜单栏图标、不监听 Fn，否则一次按键会被输入两遍
+        let diagnostic = ["--test-file", "--bench"].contains { CommandLine.arguments.contains($0) }
+        if !diagnostic {
+            setupMenu()
+            requestPermissions()
+            wireMonitor()
+            startMonitor()
+        }
         if CommandLine.arguments.contains("--test-record") { selfTestRecording() }
         if let i = CommandLine.arguments.firstIndex(of: "--test-file"), i + 1 < CommandLine.arguments.count,
            let wav = try? Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[i + 1])) {
@@ -181,7 +185,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             screenTask = nil
         }
         // 说话期间把本地 LLM 加载好。开启纠错后 LLM 只用于“选中文字改写”，没有选中文字就不加载，省 5~6 GB
-        if !config.correctorEnabled || !(focus.selectedText ?? "").isEmpty { Polisher.warmUp(config: config) }
+        let willUseLLM = (config.editSelection && !(focus.selectedText ?? "").isEmpty) || (config.llmPolish && !config.correctorEnabled)
+        if willUseLLM { Polisher.warmUp(config: config) }
         do {
             try recorder.start(noiseSuppression: config.noiseSuppression)
         } catch {
@@ -275,7 +280,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 let context = [focus.textBeforeCursor.map { String($0.suffix(500)) } ?? "",
                                String(screen.visibleText.suffix(2500))].filter { !$0.isEmpty }.joined(separator: "\n")
                 let fixes = try await Corrector.correct(wav: wav, draft: raw, context: context, hotwords: hotwords, config: config)
-                let result = Corrector.apply(fixes, to: raw)
+                let result = Corrector.apply(fixes, to: raw, hotwords: hotwords)
                 output = result.text.isEmpty ? raw : result.text
                 if !fixes.isEmpty {
                     func show(_ f: [Corrector.Fix]) -> String { f.map { "\($0.from)→\($0.to)" }.joined(separator: ", ") }
@@ -285,9 +290,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             } catch {
                 Log.info("corrector error: \(error.localizedDescription), using raw")
             }
-        } else if llmReady {
+        } else if llmReady, editingSelection || config.llmPolish {
             do {
-                if config.editSelection, let selected = focus.selectedText, !selected.isEmpty {
+                if editingSelection, let selected = focus.selectedText {
                     output = try await Polisher.edit(selected: selected, instruction: raw, config: config)
                 } else {
                     let context = config.useFieldContext ? focus.textBeforeCursor : nil
@@ -307,6 +312,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 output = raw
             }
         }
+
+        // 不用模型的规则整理：去语气词、修格式（改写选中文字时不动 LLM 的输出）
+        if !editingSelection { output = TextCleanup.apply(output) }
 
         lastResult = output
         if insert {   // 诊断运行不写历史

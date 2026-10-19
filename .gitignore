@@ -12,3 +12,9 @@ bench/audio/
 bench/results_*.jsonl
 
 .DS_Store
+
+# 真实录音对比（个人数据，不进仓库）
+bench/real/
+
+# 本机预览配置
+.claude/

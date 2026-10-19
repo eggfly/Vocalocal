@@ -35,7 +35,7 @@ enum Corrector {
     }
 
     /// 逐条校验后套用。返回结果文字和被拒绝的修改（写进历史，方便以后调整规则）
-    static func apply(_ fixes: [Fix], to draft: String) -> (text: String, applied: [Fix], rejected: [Fix]) {
+    static func apply(_ fixes: [Fix], to draft: String, hotwords: [String] = []) -> (text: String, applied: [Fix], rejected: [Fix]) {
         var text = draft
         var applied: [Fix] = []
         var rejected: [Fix] = []
@@ -50,7 +50,8 @@ enum Corrector {
                 }
                 guard from.count <= 12 else { return false }                             // 只改词，不改整句
                 guard to.count <= max(from.count * 3, from.count + 10) else { return false }
-                return true
+                // 发音必须相近：拦下 改低→改高、SSD→机械硬盘 这类“改了意思”的修改
+                return PhoneticGuard.accept(from: from, to: to, hotwords: hotwords).ok
             }()
             // 总改动不超过初稿的 40%，防止模型借多条小修改变相重写
             if ok, changedChars + max(from.count, to.count) <= max(8, draft.count * 4 / 10) {

@@ -31,12 +31,13 @@ struct SettingsView: View {
                 TextField("语言（zh / en / 留空自动）", text: $model.config.asrLanguage)
                 Toggle("降噪 / 回声消除", isOn: $model.config.noiseSuppression)
             }
-            Section("纠错（本地 Qwen3-Omni，听录音只改听错的词）") {
+            Section("纠错（本地 Qwen3-Omni，约 21 GB，默认关闭）") {
                 Toggle("启用", isOn: $model.config.correctorEnabled)
                 TextField("服务地址", text: $model.config.correctorURL)
             }
-            Section("LLM 润色（纠错关闭时使用；选中文字改写始终使用）") {
+            Section("LLM（选中文字后语音改写）") {
                 Toggle("启用", isOn: $model.config.llmEnabled)
+                Toggle("也用 LLM 整理每次口述（会改写，默认关）", isOn: $model.config.llmPolish)
                 TextField("Base URL", text: $model.config.llmBaseURL)
                 SecureField("API Key", text: $model.config.llmAPIKey)
                 TextField("模型", text: $model.config.llmModel)

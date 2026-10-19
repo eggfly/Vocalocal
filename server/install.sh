@@ -1,9 +1,10 @@
 #!/bin/bash
 # 在 host 上安装本地服务：登录后自动启动，崩溃自动重启
-#   识别  com.eggfly.vocalocal-asr      Qwen3-ASR    127.0.0.1:8765  约 2.5 GB 内存
-#   纠错  com.eggfly.vocalocal-correct  Qwen3-Omni   127.0.0.1:8766  约 17 GB 内存
+#   识别  com.eggfly.vocalocal-asr      Qwen3-ASR    127.0.0.1:8765  约 2.5 GB 内存（必需）
+#   纠错  com.eggfly.vocalocal-correct  Qwen3-Omni   127.0.0.1:8766  约 21 GB 内存（可选，默认不装）
 #
-#   ./server/install.sh            安装/更新并启动全部
+#   ./server/install.sh            只安装识别服务（默认的小内存方案）
+#   ./server/install.sh all        同时安装纠错服务（还需在设置里打开“纠错”）
 #   ./server/install.sh uninstall  停止并移除全部
 set -euo pipefail
 
@@ -60,5 +61,9 @@ if [[ "${1:-}" == "uninstall" ]]; then
   exit 0
 fi
 
-install_agent com.eggfly.vocalocal-asr     "$DIR/bench/.venv/bin/python"      asr_server.py     VOCALOCAL_ASR_PORT     8765
-install_agent com.eggfly.vocalocal-correct "$DIR/bench/.venv-omni/bin/python" correct_server.py VOCALOCAL_CORRECT_PORT 8766
+install_agent com.eggfly.vocalocal-asr "$DIR/bench/.venv/bin/python" asr_server.py VOCALOCAL_ASR_PORT 8765
+if [[ "${1:-}" == "all" ]]; then
+  install_agent com.eggfly.vocalocal-correct "$DIR/bench/.venv-omni/bin/python" correct_server.py VOCALOCAL_CORRECT_PORT 8766
+else
+  remove_agent com.eggfly.vocalocal-correct >/dev/null   # 从“全部”切回默认时释放约 21 GB
+fi
